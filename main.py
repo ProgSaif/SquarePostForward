@@ -86,7 +86,7 @@ class ForwarderBot:
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="red")
+        img = qr.make_image(fill_color="white", back_color="black")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
