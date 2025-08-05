@@ -1,78 +1,102 @@
 import os
 import re
-import asyncio
-from telethon.sync import TelegramClient, events
-from telethon.sessions import StringSession
-from telegram import Bot
-from telegram.error import TelegramError
+import logging
+from telethon import TelegramClient, events, types
+from dotenv import load_dotenv
 
-# Configuration from environment variables
-api_id = os.getenv('API_ID')
-api_hash = os.getenv('API_HASH')
-bot_token = os.getenv('BOT_TOKEN')
-session_string = os.getenv('SESSION_STRING')
-source_chat_id = int(os.getenv('SOURCE_CHAT_ID'))
-destination_channel_id = int(os.getenv('DESTINATION_CHANNEL_ID'))
+# Load environment variables
+load_dotenv()
 
-# Initialize both clients
-user_client = TelegramClient(StringSession(session_string), api_id, api_hash)
-bot_client = Bot(token=bot_token)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 
-async def format_message(text):
-    crypto_match = re.match(r'^([A-Z]+)', text)
-    crypto_name = crypto_match.group(1) if crypto_match else "CRYPTO"
-    
-    amount_match = re.search(r'(\d+ \| ~[\d.]+ [A-Z]+)', text)
-    usdt_match = re.search(r'(~[\d.]+ USDT)', text)
-    answer_match = re.search(r'Answer:\s*(.*?)(?=\n#|$)', text, re.DOTALL)
-    
-    answer = answer_match.group(1).strip() if answer_match else ""
-    answer = re.sub(r'copy\s*[^\w\s]*', '', answer)
-    answer = re.sub(r'([!]+)', '❕', answer).strip()
-    
-    formatted_msg = f"❤️‍🩹 {crypto_name} ❤️‍🩹\n"
-    formatted_msg += f"💎 {amount_match.group(1) if amount_match else ''}\n"
-    formatted_msg += f"💰 {usdt_match.group(1) if usdt_match else ''}\n\n"
-    formatted_msg += f"Answer:\n{answer}❕{answer}❕\n\n"
-    formatted_msg += "#square #slot"
-    
-    return formatted_msg
+# Filter configurations
+FORBIDDEN_WORDS = ['big', 'box', 'slot', 'square', 'thxbox', 'thx', 'angelia']
+VALID_NUMBERS = ['Answer:', '#square']
+FORBIDDEN_TERMS = ['box']
+BINANCE_LINK_PATTERN = re.compile(r'https://app\.binance\.com/uni-qr/cart/\d+')
 
-@user_client.on(events.NewMessage(chats=source_chat_id))
-async def handle_new_message(event):
+# Initialize client
+client = TelegramClient('forwarder_bot', os.getenv('API_ID'), os.getenv('API_HASH'))
+
+def should_forward(message_text):
+    """Check if message meets all forwarding criteria"""
+    # Must contain a Binance QR link
+    if not BINANCE_LINK_PATTERN.search(message_text):
+        return False
+    
+    # Check for valid numbers/patterns
+    if not any(num in message_text for num in VALID_NUMBERS):
+        return False
+    
+    # Check for forbidden terms
+    if any(term.lower() in message_text.lower() for term in FORBIDDEN_TERMS):
+        return False
+    
+    # Check for forbidden words (case insensitive)
+    if any(re.search(rf'\b{re.escape(word)}\b', message_text, re.IGNORECASE) for word in FORBIDDEN_WORDS):
+        return False
+    
+    return True
+
+def clean_message(message_text):
+    """Clean the message text while preserving Binance links"""
+    # Remove forbidden words
+    for word in FORBIDDEN_WORDS:
+        message_text = re.sub(rf'\b{re.escape(word)}\b', '', message_text, flags=re.IGNORECASE)
+    
+    # Clean up extra spaces and empty lines
+    message_text = '\n'.join(line.strip() for line in message_text.split('\n') if line.strip())
+    
+    return message_text.strip()
+
+async def process_message(event):
+    """Process and forward valid messages"""
     try:
-        if not event.message.media:
-            formatted_message = await format_message(event.message.text)
+        # Skip if no text content
+        if not event.message.text:
+            return
             
-            # Try sending via bot first, fallback to user account
-            try:
-                await bot_client.send_message(
-                    chat_id=destination_channel_id,
-                    text=formatted_message
-                )
-            except TelegramError as e:
-                print(f"Bot failed to send message, falling back to user account: {e}")
-                await user_client.send_message(
-                    destination_channel_id,
-                    formatted_message
-                )
-                
+        message_text = event.message.text
+        
+        if should_forward(message_text):
+            cleaned_text = clean_message(message_text)
+            
+            # Extract Binance link
+            binance_link = BINANCE_LINK_PATTERN.search(message_text).group(0)
+            
+            # Forward to all target channels (text only)
+            for target in os.getenv('TARGET_CHANNELS').split(','):
+                try:
+                    await client.send_message(
+                        entity=int(target),
+                        message=cleaned_text,
+                        link_preview=False,  # Prevent link preview
+                        file=None  # Remove all media
+                    )
+                    logging.info(f"Forwarded message with Binance link to {target}")
+                except Exception as e:
+                    logging.error(f"Failed to forward to {target}: {str(e)}")
+        else:
+            logging.info("Message didn't meet forwarding criteria")
+            
     except Exception as e:
-        print(f"Error processing message: {e}")
+        logging.error(f"Error processing message: {str(e)}")
 
-async def main():
-    # Start the user client
-    await user_client.start()
-    
-    # Verify bot connection
-    try:
-        bot_info = await bot_client.get_me()
-        print(f"Bot connected as @{bot_info.username}")
-    except TelegramError as e:
-        print(f"Bot connection failed: {e}")
-    
-    print("Forwarder bot is running...")
-    await user_client.run_until_disconnected()
+@client.on(events.NewMessage(chats=os.getenv('SOURCE_CHANNELS').split(',')))
+async def handler(event):
+    # Skip messages that are purely media (no text)
+    if event.message.text or (event.message.text and event.message.media):
+        await process_message(event)
+
+async def run():
+    await client.start(bot_token=os.getenv('BOT_TOKEN'))
+    logging.info("Bot started and running...")
+    await client.run_until_disconnected()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    client.loop.run_until_complete(run())
