@@ -65,27 +65,19 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Preserve crypto name with link while removing other forbidden content"""
-        # Find and preserve the crypto name with link pattern
-        crypto_link_pattern = re.compile(r'(\*\*?[A-Z]+\*\*?\s*\(https://app\.binance\.com/uni-qr/cart/\d+\)')
-        crypto_matches = crypto_link_pattern.findall(message_text)
+        """Remove forbidden words while preserving ALL formatting including monospace"""
+        # Remove Binance link but preserve other formatting
+        message_text = re.sub(r'https://app\.binance\.com/uni-qr/cart/\d+', '', message_text)
         
-        # Remove other Binance links but keep the crypto name link
-        temp_text = re.sub(r'https://app\.binance\.com/uni-qr/cart/\d+', '', message_text)
-        
-        # Restore the crypto name with link
-        if crypto_matches:
-            temp_text = crypto_matches[0] + temp_text.replace(crypto_matches[0], '')
-        
-        # Remove forbidden words
+        # Remove only complete matches of forbidden words
         for word in FORBIDDEN_WORDS:
-            temp_text = re.sub(
+            message_text = re.sub(
                 rf'\b{re.escape(word)}\b',
                 '',
-                temp_text,
+                message_text,
                 flags=re.IGNORECASE
             )
-        return temp_text
+        return message_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with custom styling"""
@@ -122,24 +114,24 @@ class ForwarderBot:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send with parse_mode='md' to preserve formatting
+                            # Send with parse_mode='md' to preserve monospace and other formatting
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='md',
+                                parse_mode='md',  # This preserves monospace/code blocks
                                 link_preview=False
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
-                                parse_mode='md',
+                                parse_mode='md',  # Preserve all formatting
                                 link_preview=False
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Forwarded to {target} with crypto link preserved")
+                        logger.info(f"Perfectly forwarded to {target}")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
