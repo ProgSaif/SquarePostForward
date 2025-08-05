@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
-VALID_NUMBERS = ['USDT', 'DOGE', 'BTTC', 'Answer:']
+FORBIDDEN_WORDS = ['#', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
+VALID_NUMBERS = ['USDT', 'Answer:', '#square']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
