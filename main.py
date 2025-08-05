@@ -62,17 +62,11 @@ class ForwarderBot:
         """Check forwarding criteria"""
         if not BINANCE_LINK_PATTERN.search(message_text):
             return False
-        
-        # Check if message contains any forbidden words
-        if any(re.search(rf'\b{re.escape(word)}\b', message_text, re.IGNORECASE) 
-           for word in FORBIDDEN_WORDS):
-            return False
-            
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Preserve original message without modification"""
-        return message_text
+        """Preserve original message without removing any words"""
+        return message_text  # Simply return the original text without modification
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with custom styling"""
@@ -104,8 +98,9 @@ class ForwarderBot:
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
                 
-                # Keep the first Binance link in the text
+                # Keep the first Binance link in the text (will be clickable)
                 if binance_links:
+                    # Replace all Binance links with just the first one
                     cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
                 else:
                     cleaned_text = original_text
@@ -114,23 +109,24 @@ class ForwarderBot:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
+                            # Send with the original link preserved in text
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='md',
-                                link_preview=True
+                                parse_mode='md',  # Preserves all formatting
+                                link_preview=True  # This enables link embedding
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
                                 parse_mode='md',
-                                link_preview=True
+                                link_preview=True  # Enable link embedding
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Forwarded to {target}")
+                        logger.info(f"Perfectly forwarded to {target}")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
