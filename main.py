@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
+FORBIDDEN_WORDS = ['big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
 VALID_NUMBERS = ['USDT', 'Answer:', '#square']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
@@ -81,8 +81,8 @@ class ForwarderBot:
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=5,
-            border=9,
+            box_size=10,
+            border=10,
         )
         qr.add_data(url)
         qr.make(fit=True)
