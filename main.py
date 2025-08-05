@@ -65,16 +65,8 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove forbidden words while preserving ALL formatting including monospace"""
-        # Remove only complete matches of forbidden words
-        for word in FORBIDDEN_WORDS:
-            message_text = re.sub(
-                rf'\b{re.escape(word)}\b',
-                '',
-                message_text,
-                flags=re.IGNORECASE
-            )
-        return message_text
+        """Preserve original message without removing any words"""
+        return message_text  # Simply return the original text without modification
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with custom styling"""
@@ -110,10 +102,8 @@ class ForwarderBot:
                 if binance_links:
                     # Replace all Binance links with just the first one
                     cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
-                    # Still remove forbidden words
-                    cleaned_text = self.clean_message(cleaned_text)
                 else:
-                    cleaned_text = self.clean_message(original_text)
+                    cleaned_text = original_text
                 
                 for target in self.target_channels:
                     try:
