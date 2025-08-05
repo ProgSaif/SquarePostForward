@@ -1,15 +1,11 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "config": {
-      "nixpacks": {
-        "startCmd": "python main.py"
-      }
-    }
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "python main.py",
     "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
     "ports": {
       "type": "web",
       "httpPort": 8000
