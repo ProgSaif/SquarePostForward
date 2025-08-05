@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
-VALID_NUMBERS = ['USDT', 'Answer:', '#square']
+FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
+VALID_NUMBERS = ['USDT', 'DOGE', 'BTTC', 'Answer:']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
@@ -65,8 +65,16 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Preserve original message without removing any words"""
-        return message_text  # Simply return the original text without modification
+        """Remove forbidden words while preserving ALL formatting including monospace"""
+        # Remove only complete matches of forbidden words
+        for word in FORBIDDEN_WORDS:
+            message_text = re.sub(
+                rf'\b{re.escape(word)}\b',
+                '',
+                message_text,
+                flags=re.IGNORECASE
+            )
+        return message_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with custom styling"""
@@ -74,11 +82,11 @@ class ForwarderBot:
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=10,
-            border=10,
+            border=4,
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="red", back_color="white")
+        img = qr.make_image(fill_color="black", back_color="red")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
@@ -102,8 +110,10 @@ class ForwarderBot:
                 if binance_links:
                     # Replace all Binance links with just the first one
                     cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
+                    # Still remove forbidden words
+                    cleaned_text = self.clean_message(cleaned_text)
                 else:
-                    cleaned_text = original_text
+                    cleaned_text = self.clean_message(original_text)
                 
                 for target in self.target_channels:
                     try:
