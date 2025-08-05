@@ -41,7 +41,7 @@ class ForwarderBot:
         ]
         self.target_channels = [
             int(ch.strip()) for ch in 
-            os.getenv('TARGET_CHANNELS', '-1002767963315').split(',') 
+            os.getenv('TARGET_CHANNELS', '-1002767963315,-1002361267520').split(',') 
             if ch.strip()
         ]
         self.forwarded_messages = set()
