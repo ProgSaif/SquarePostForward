@@ -66,9 +66,6 @@ class ForwarderBot:
 
     def clean_message(self, message_text: str) -> str:
         """Remove forbidden words while preserving ALL formatting including monospace"""
-        # Remove Binance link but preserve other formatting
-        message_text = re.sub(r'https://app\.binance\.com/uni-qr/cart/\d+', '', message_text)
-        
         # Remove only complete matches of forbidden words
         for word in FORBIDDEN_WORDS:
             message_text = re.sub(
@@ -108,26 +105,34 @@ class ForwarderBot:
             if self.should_forward(event.message.text):
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
-                cleaned_text = self.clean_message(original_text)
+                
+                # Keep the first Binance link in the text (will be clickable)
+                if binance_links:
+                    # Replace all Binance links with just the first one
+                    cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
+                    # Still remove forbidden words
+                    cleaned_text = self.clean_message(cleaned_text)
+                else:
+                    cleaned_text = self.clean_message(original_text)
                 
                 for target in self.target_channels:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send with parse_mode='md' to preserve monospace and other formatting
+                            # Send with the original link preserved in text
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='md',  # This preserves monospace/code blocks
-                                link_preview=False
+                                parse_mode='md',  # Preserves all formatting
+                                link_preview=True  # This enables link embedding
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
-                                parse_mode='md',  # Preserve all formatting
-                                link_preview=False
+                                parse_mode='md',
+                                link_preview=True  # Enable link embedding
                             )
                         
                         self.forwarded_messages.add(message_id)
