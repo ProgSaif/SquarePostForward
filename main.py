@@ -66,44 +66,46 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Clean message while preserving original formatting EXACTLY"""
-        # Remove forbidden words while keeping original spacing and line breaks
-        words = message_text.split(' ')
-        cleaned_words = []
+        """Remove forbidden words while preserving EXACT original formatting"""
+        # Split by lines and process each line individually
+        lines = message_text.split('\n')
+        cleaned_lines = []
         
-        for word in words:
-            original_word = word
-            # Check whole words only (case insensitive)
-            if word.lower() in [w.lower() for w in FORBIDDEN_WORDS]:
-                continue
-            cleaned_words.append(original_word)
+        for line in lines:
+            # Only remove whole words that exactly match forbidden words
+            words = line.split(' ')
+            cleaned_words = []
+            
+            for word in words:
+                if word.strip().lower() not in [w.lower() for w in FORBIDDEN_WORDS]:
+                    cleaned_words.append(word)
+            
+            # Reconstruct the line with original spacing
+            cleaned_line = ' '.join(cleaned_words)
+            cleaned_lines.append(cleaned_line)
         
-        # Reconstruct with original spacing
-        return ' '.join(cleaned_words)
+        # Reconstruct with original line breaks
+        return '\n'.join(cleaned_lines)
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code for a given URL"""
-        try:
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(url)
-            qr.make(fit=True)
-            
-            img = qr.make_image(fill_color="black", back_color="white")
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            buffer.seek(0)
-            return buffer
-        except Exception as e:
-            logger.error(f"QR generation failed: {e}")
-            raise
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        return buffer
 
     async def handle_message(self, event):
-        """Process messages while preserving original formatting"""
+        """Process messages while perfectly preserving formatting"""
         try:
             if not event.message.text:
                 return
@@ -121,12 +123,12 @@ class ForwarderBot:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send original text format with QR code
+                            # Send with original formatting and QR code
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode=None,  # Preserve original formatting
+                                parse_mode=None,  # Crucial for preserving formatting
                                 link_preview=False
                             )
                         else:
@@ -138,7 +140,7 @@ class ForwarderBot:
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Forwarded to {target} (format preserved)")
+                        logger.info(f"Perfectly forwarded to {target}")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
