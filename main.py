@@ -1,16 +1,22 @@
 import os
 import re
-from telethon.sync import TelegramClient
+import asyncio
+from telethon.sync import TelegramClient, events
 from telethon.sessions import StringSession
+from telegram import Bot
+from telegram.error import TelegramError
 
-# Get config from environment variables
+# Configuration from environment variables
 api_id = os.getenv('API_ID')
 api_hash = os.getenv('API_HASH')
+bot_token = os.getenv('BOT_TOKEN')
 session_string = os.getenv('SESSION_STRING')
-source_chat_id = os.getenv('SOURCE_CHAT_ID')
-destination_channel_id = os.getenv('DESTINATION_CHANNEL_ID')
+source_chat_id = int(os.getenv('SOURCE_CHAT_ID'))
+destination_channel_id = int(os.getenv('DESTINATION_CHANNEL_ID'))
 
-client = TelegramClient(StringSession(session_string), api_id, api_hash)
+# Initialize both clients
+user_client = TelegramClient(StringSession(session_string), api_id, api_hash)
+bot_client = Bot(token=bot_token)
 
 async def format_message(text):
     crypto_match = re.match(r'^([A-Z]+)', text)
@@ -32,16 +38,41 @@ async def format_message(text):
     
     return formatted_msg
 
-@client.on(events.NewMessage(chats=int(source_chat_id)))
-async def handler(event):
-    if not event.message.media:
-        formatted_message = await format_message(event.message.text)
-        await client.send_message(int(destination_channel_id), formatted_message)
+@user_client.on(events.NewMessage(chats=source_chat_id))
+async def handle_new_message(event):
+    try:
+        if not event.message.media:
+            formatted_message = await format_message(event.message.text)
+            
+            # Try sending via bot first, fallback to user account
+            try:
+                await bot_client.send_message(
+                    chat_id=destination_channel_id,
+                    text=formatted_message
+                )
+            except TelegramError as e:
+                print(f"Bot failed to send message, falling back to user account: {e}")
+                await user_client.send_message(
+                    destination_channel_id,
+                    formatted_message
+                )
+                
+    except Exception as e:
+        print(f"Error processing message: {e}")
 
 async def main():
-    await client.start()
-    print("Bot started and running...")
-    await client.run_until_disconnected()
+    # Start the user client
+    await user_client.start()
+    
+    # Verify bot connection
+    try:
+        bot_info = await bot_client.get_me()
+        print(f"Bot connected as @{bot_info.username}")
+    except TelegramError as e:
+        print(f"Bot connection failed: {e}")
+    
+    print("Forwarder bot is running...")
+    await user_client.run_until_disconnected()
 
-with client:
-    client.loop.run_until_complete(main())
+if __name__ == '__main__':
+    asyncio.run(main())
