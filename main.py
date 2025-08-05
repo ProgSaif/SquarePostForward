@@ -12,17 +12,19 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
+# Initialize Flask app
 app = Flask(__name__)
 
 # Filter configurations
 FORBIDDEN_WORDS = ['big', 'box', 'slot', 'square', 'thxbox', 'thx', 'angelia']
 VALID_NUMBERS = ['USDT', 'Answer:', '#square']
+FORBIDDEN_TERMS = ['http', 't.me', '@']
 BINANCE_LINK_PATTERN = re.compile(r'https://app\.binance\.com/uni-qr/cart/\d+')
 
 class ForwarderBot:
@@ -61,6 +63,28 @@ class ForwarderBot:
             return False
         return any(num in message_text for num in VALID_NUMBERS)
 
+    def clean_message(self, message_text: str) -> str:
+        """Enhanced message cleaning with strict word removal"""
+        # Remove forbidden words (whole words only, case insensitive)
+        for word in FORBIDDEN_WORDS:
+            message_text = re.sub(
+                rf'(^|\W){re.escape(word)}($|\W)',
+                lambda m: m.group(1) or m.group(2),  # Preserve surrounding punctuation
+                message_text,
+                flags=re.IGNORECASE
+            )
+            # Clean up double spaces that might result from word removal
+            message_text = ' '.join(message_text.split())
+        
+        # Remove empty lines and trim whitespace
+        cleaned_lines = []
+        for line in message_text.split('\n'):
+            line = line.strip()
+            if line:
+                cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines)
+
     async def handle_message(self, event):
         """Process incoming messages"""
         try:
@@ -72,11 +96,8 @@ class ForwarderBot:
                 return
 
             if self.should_forward(event.message.text):
-                cleaned_text = '\n'.join(
-                    line.strip() for line in event.message.text.split('\n') 
-                    if line.strip()
-                )
-
+                cleaned_text = self.clean_message(event.message.text)
+                
                 for target in self.target_channels:
                     try:
                         await self.client.send_message(
