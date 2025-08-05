@@ -24,9 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
-VALID_NUMBERS = ['USDT', 'Answer:', '#square']
-FORBIDDEN_TERMS = ['http', 't.me', '@']
+FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']  # Removed general words that might be part of formatting
+VALID_NUMBERS = ['USDT', 'DOGE', 'Answer:']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
@@ -66,26 +65,18 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove forbidden words while preserving EXACT original formatting"""
-        # Split by lines and process each line individually
-        lines = message_text.split('\n')
-        cleaned_lines = []
-        
-        for line in lines:
-            # Only remove whole words that exactly match forbidden words
-            words = line.split(' ')
-            cleaned_words = []
-            
-            for word in words:
-                if word.strip().lower() not in [w.lower() for w in FORBIDDEN_WORDS]:
-                    cleaned_words.append(word)
-            
-            # Reconstruct the line with original spacing
-            cleaned_line = ' '.join(cleaned_words)
-            cleaned_lines.append(cleaned_line)
-        
-        # Reconstruct with original line breaks
-        return '\n'.join(cleaned_lines)
+        """Remove only specific forbidden phrases while preserving all formatting"""
+        # Remove only complete matches of forbidden words
+        for word in FORBIDDEN_WORDS:
+            message_text = re.sub(
+                rf'\b{re.escape(word)}\b',
+                '',
+                message_text,
+                flags=re.IGNORECASE
+            )
+        # Clean up any double spaces from removed words
+        message_text = re.sub(' +', ' ', message_text)
+        return message_text.strip()
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code for a given URL"""
@@ -105,7 +96,7 @@ class ForwarderBot:
         return buffer
 
     async def handle_message(self, event):
-        """Process messages while perfectly preserving formatting"""
+        """Process messages while perfectly preserving original formatting"""
         try:
             if not event.message.text:
                 return
@@ -140,7 +131,7 @@ class ForwarderBot:
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Perfectly forwarded to {target}")
+                        logger.info(f"Message forwarded to {target} with original formatting")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
