@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
-VALID_NUMBERS = ['USDT', 'DOGE', 'Answer:']
+FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']  # Only specific full-word matches
+VALID_NUMBERS = ['USDT', 'DOGE', 'BTTC', 'Answer:']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
@@ -65,38 +65,38 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove forbidden words while preserving exact formatting"""
-        # Remove only complete matches of forbidden words
+        """Remove only specific forbidden phrases while preserving ALL formatting"""
+        # First remove the Binance link completely
+        message_text = re.sub(r'https://app\.binance\.com/uni-qr/cart/\d+', '', message_text)
+        
+        # Then remove only complete matches of forbidden words
         for word in FORBIDDEN_WORDS:
             message_text = re.sub(
-                rf'\b{re.escape(word)}\b',
-                '',
+                rf'(^|\W){re.escape(word)}($|\W)',
+                lambda m: m.group(1) or m.group(2),
                 message_text,
                 flags=re.IGNORECASE
             )
-        # Clean up any double spaces from removed words
-        message_text = re.sub(' +', ' ', message_text)
-        return message_text.strip()
+        return message_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
-        """Generate QR code for a given URL"""
+        """Generate high-quality QR code"""
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=12,
             border=4,
         )
         qr.add_data(url)
         qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="black", back_color="white")
+        img = qr.make_image(fill_color="red", back_color="black")
         buffer = BytesIO()
-        img.save(buffer, format="PNG")
+        img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
         return buffer
 
     async def handle_message(self, event):
-        """Process messages while preserving exact source format"""
+        """Process messages with pixel-perfect formatting"""
         try:
             if not event.message.text:
                 return
@@ -107,31 +107,31 @@ class ForwarderBot:
 
             if self.should_forward(event.message.text):
                 original_text = event.message.text
-                cleaned_text = self.clean_message(original_text)
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
+                cleaned_text = self.clean_message(original_text)
                 
                 for target in self.target_channels:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send QR code as hidden media with original text
+                            # Send as photo with caption (preserves formatting)
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode=None,  # Preserve original formatting
+                                parse_mode=None,  # CRUCIAL - preserves original formatting
                                 link_preview=False
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
-                                parse_mode=None,  # Preserve original formatting
+                                parse_mode=None,
                                 link_preview=False
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Message forwarded to {target} with original formatting")
+                        logger.info(f"Perfectly forwarded to {target}")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
