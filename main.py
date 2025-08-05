@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
-VALID_NUMBERS = ['USDT', 'DOGE', 'BTTC', 'Answer:']
+FORBIDDEN_WORDS = ['big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
+VALID_NUMBERS = ['USDT', 'Answer:', '#square']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
@@ -62,18 +62,16 @@ class ForwarderBot:
         """Check forwarding criteria"""
         if not BINANCE_LINK_PATTERN.search(message_text):
             return False
+        
+        # Check if message contains any forbidden words
+        if any(re.search(rf'\b{re.escape(word)}\b', message_text, re.IGNORECASE) 
+           for word in FORBIDDEN_WORDS):
+            return False
+            
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove forbidden words while preserving ALL formatting including monospace"""
-        # Remove only complete matches of forbidden words
-        for word in FORBIDDEN_WORDS:
-            message_text = re.sub(
-                rf'\b{re.escape(word)}\b',
-                '',
-                message_text,
-                flags=re.IGNORECASE
-            )
+        """Preserve original message without modification"""
         return message_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
@@ -82,11 +80,11 @@ class ForwarderBot:
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=10,
-            border=4,
+            border=10,
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="red")
+        img = qr.make_image(fill_color="red", back_color="white")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
@@ -106,37 +104,33 @@ class ForwarderBot:
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
                 
-                # Keep the first Binance link in the text (will be clickable)
+                # Keep the first Binance link in the text
                 if binance_links:
-                    # Replace all Binance links with just the first one
                     cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
-                    # Still remove forbidden words
-                    cleaned_text = self.clean_message(cleaned_text)
                 else:
-                    cleaned_text = self.clean_message(original_text)
+                    cleaned_text = original_text
                 
                 for target in self.target_channels:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send with the original link preserved in text
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='md',  # Preserves all formatting
-                                link_preview=True  # This enables link embedding
+                                parse_mode='md',
+                                link_preview=True
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
                                 parse_mode='md',
-                                link_preview=True  # Enable link embedding
+                                link_preview=True
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Perfectly forwarded to {target}")
+                        logger.info(f"Forwarded to {target}")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
