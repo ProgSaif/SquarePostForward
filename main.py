@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = [ '#', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
+FORBIDDEN_WORDS = ['#', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
 VALID_NUMBERS = ['USDT', 'Answer:', '#square']
 FORBIDDEN_TERMS = ['http', 't.me', '@']
 BINANCE_LINK_PATTERN = re.compile(r'https://app\.binance\.com/uni-qr/cart/\d+')
@@ -64,29 +64,31 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Enhanced message cleaning with strict word removal"""
-        # Remove forbidden words (whole words only, case insensitive)
-        for word in FORBIDDEN_WORDS:
-            message_text = re.sub(
-                rf'(^|\W){re.escape(word)}($|\W)',
-                lambda m: m.group(1) or m.group(2),  # Preserve surrounding punctuation
-                message_text,
-                flags=re.IGNORECASE
-            )
-            # Clean up double spaces that might result from word removal
-            message_text = ' '.join(message_text.split())
-        
-        # Remove empty lines and trim whitespace
+        """Perfectly clean message while preserving original line format"""
+        # Remove forbidden words while maintaining structure
+        lines = message_text.split('\n')
         cleaned_lines = []
-        for line in message_text.split('\n'):
+        
+        for line in lines:
+            original_line = line
+            # Remove forbidden words (case insensitive, whole words only)
+            for word in FORBIDDEN_WORDS:
+                line = re.sub(
+                    rf'(^|\W){re.escape(word)}($|\W)',
+                    lambda m: m.group(1) or m.group(2),
+                    line,
+                    flags=re.IGNORECASE
+                )
+            # Clean up spaces but preserve non-empty lines
             line = line.strip()
             if line:
                 cleaned_lines.append(line)
         
+        # Reconstruct with original line breaks (no extra newlines)
         return '\n'.join(cleaned_lines)
 
     async def handle_message(self, event):
-        """Process incoming messages"""
+        """Process incoming messages with perfect formatting"""
         try:
             if not event.message.text:
                 return
