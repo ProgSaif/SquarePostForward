@@ -82,11 +82,11 @@ class ForwarderBot:
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=10,
-            border=4,
+            border=6,
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="white", back_color="black")
+        img = qr.make_image(fill_color="red", back_color="white")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
