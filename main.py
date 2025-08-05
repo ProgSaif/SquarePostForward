@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#slot', '#square', 'thxbox', 'thx', 'angelia']  # Only specific full-word matches
-VALID_NUMBERS = ['USDT', '#square', 'Answer:']
+FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
+VALID_NUMBERS = ['USDT', 'DOGE', 'BTTC', 'Answer:']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
 class ForwarderBot:
@@ -65,38 +65,38 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove only specific forbidden phrases while preserving ALL formatting"""
-        # First remove the Binance link completely
+        """Remove forbidden words while preserving ALL formatting including monospace"""
+        # Remove Binance link but preserve other formatting
         message_text = re.sub(r'https://app\.binance\.com/uni-qr/cart/\d+', '', message_text)
         
-        # Then remove only complete matches of forbidden words
+        # Remove only complete matches of forbidden words
         for word in FORBIDDEN_WORDS:
             message_text = re.sub(
-                rf'(^|\W){re.escape(word)}($|\W)',
-                lambda m: m.group(1) or m.group(2),
+                rf'\b{re.escape(word)}\b',
+                '',
                 message_text,
                 flags=re.IGNORECASE
             )
         return message_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
-        """Generate high-quality QR code"""
+        """Generate QR code with custom styling"""
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=12,
+            box_size=10,
             border=4,
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="red", back_color="black")
+        img = qr.make_image(fill_color="red", back_color="white")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
         return buffer
 
     async def handle_message(self, event):
-        """Process messages with pixel-perfect formatting"""
+        """Process messages with perfect formatting preservation"""
         try:
             if not event.message.text:
                 return
@@ -114,19 +114,19 @@ class ForwarderBot:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send as photo with caption (preserves formatting)
+                            # Send with parse_mode='md' to preserve monospace and other formatting
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode=None,  # CRUCIAL - preserves original formatting
+                                parse_mode='md',  # This preserves monospace/code blocks
                                 link_preview=False
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
-                                parse_mode=None,
+                                parse_mode='md',  # Preserve all formatting
                                 link_preview=False
                             )
                         
