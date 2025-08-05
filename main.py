@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']  # Removed general words that might be part of formatting
+FORBIDDEN_WORDS = ['#slot', 'thxbox', 'thx', 'angelia']
 VALID_NUMBERS = ['USDT', 'DOGE', 'Answer:']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)')
 
@@ -65,7 +65,7 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Remove only specific forbidden phrases while preserving all formatting"""
+        """Remove forbidden words while preserving exact formatting"""
         # Remove only complete matches of forbidden words
         for word in FORBIDDEN_WORDS:
             message_text = re.sub(
@@ -96,7 +96,7 @@ class ForwarderBot:
         return buffer
 
     async def handle_message(self, event):
-        """Process messages while perfectly preserving original formatting"""
+        """Process messages while preserving exact source format"""
         try:
             if not event.message.text:
                 return
@@ -114,12 +114,12 @@ class ForwarderBot:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send with original formatting and QR code
+                            # Send QR code as hidden media with original text
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode=None,  # Crucial for preserving formatting
+                                parse_mode=None,  # Preserve original formatting
                                 link_preview=False
                             )
                         else:
