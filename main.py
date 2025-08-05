@@ -66,24 +66,20 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Perfectly clean message while preserving original line format"""
-        lines = message_text.split('\n')
-        cleaned_lines = []
+        """Clean message while preserving original formatting EXACTLY"""
+        # Remove forbidden words while keeping original spacing and line breaks
+        words = message_text.split(' ')
+        cleaned_words = []
         
-        for line in lines:
-            original_line = line
-            for word in FORBIDDEN_WORDS:
-                line = re.sub(
-                    rf'(^|\W){re.escape(word)}($|\W)',
-                    lambda m: m.group(1) or m.group(2),
-                    line,
-                    flags=re.IGNORECASE
-                )
-            line = line.strip()
-            if line:
-                cleaned_lines.append(line)
+        for word in words:
+            original_word = word
+            # Check whole words only (case insensitive)
+            if word.lower() in [w.lower() for w in FORBIDDEN_WORDS]:
+                continue
+            cleaned_words.append(original_word)
         
-        return '\n'.join(cleaned_lines)
+        # Reconstruct with original spacing
+        return ' '.join(cleaned_words)
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code for a given URL"""
@@ -91,7 +87,7 @@ class ForwarderBot:
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=12,
+                box_size=10,
                 border=4,
             )
             qr.add_data(url)
@@ -107,7 +103,7 @@ class ForwarderBot:
             raise
 
     async def handle_message(self, event):
-        """Process incoming messages with QR code"""
+        """Process messages while preserving original formatting"""
         try:
             if not event.message.text:
                 return
@@ -117,30 +113,32 @@ class ForwarderBot:
                 return
 
             if self.should_forward(event.message.text):
-                cleaned_text = self.clean_message(event.message.text)
-                binance_links = BINANCE_LINK_PATTERN.findall(event.message.text)
+                original_text = event.message.text
+                cleaned_text = self.clean_message(original_text)
+                binance_links = BINANCE_LINK_PATTERN.findall(original_text)
                 
                 for target in self.target_channels:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
+                            # Send original text format with QR code
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='html',
+                                parse_mode=None,  # Preserve original formatting
                                 link_preview=False
                             )
-                            logger.info(f"Forwarded message with QR to {target}")
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
+                                parse_mode=None,  # Preserve original formatting
                                 link_preview=False
                             )
-                            logger.info(f"Forwarded text-only to {target}")
                         
                         self.forwarded_messages.add(message_id)
+                        logger.info(f"Forwarded to {target} (format preserved)")
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
         except Exception as e:
