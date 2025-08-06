@@ -106,8 +106,8 @@ class ForwarderBot:
         
         # Draw background rectangle
         draw.rectangle(
-            [position[0] - 15, position[1] - 15, 
-             position[0] + text_width + 15, position[1] + text_height + 15],
+            [position[0] - 10, position[1] - 10, 
+             position[0] + text_width + 10, position[1] + text_height + 10],
             fill="red"
         )
         draw.text(position, text, fill="white", font=font)
