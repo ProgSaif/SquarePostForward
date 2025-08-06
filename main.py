@@ -92,7 +92,7 @@ class ForwarderBot:
         except:
             font = ImageFont.load_default()
         
-        text = "Follow on Telegram Red Packet Hub"
+        text = "Telegram Red Packet Hub"
         
         # Modern Pillow 10+ compatible text measurement
         if hasattr(draw, 'textbbox'):  # Newer Pillow versions
@@ -110,7 +110,7 @@ class ForwarderBot:
              position[0] + text_width + 10, position[1] + text_height + 10],
             fill="white"
         )
-        draw.text(position, text, fill="red", font=font)
+        draw.text(position, text, fill="black", font=font)
         
         buffer = BytesIO()
         img.save(buffer, format="PNG")
