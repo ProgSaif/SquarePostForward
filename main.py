@@ -88,7 +88,7 @@ class ForwarderBot:
         draw = ImageDraw.Draw(img)
         
         try:
-            font = ImageFont.truetype("arial.ttf", 500)
+            font = ImageFont.truetype("arial.ttf", 20)
         except:
             font = ImageFont.load_default()
         
