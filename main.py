@@ -78,7 +78,31 @@ class ForwarderBot:
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="red", back_color="white")
+        
+        # Create QR code image
+        img = qr.make_image(fill_color="red", back_color="white").convert('RGB')
+        
+        # Add text to the center of the QR code
+        from PIL import ImageDraw, ImageFont
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype("arial.ttf", 20)
+        except:
+            font = ImageFont.load_default()
+        
+        # Calculate text position
+        text = "RedPacketHub"
+        text_width, text_height = draw.textsize(text, font=font)
+        position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
+        
+        # Draw text with white background
+        draw.rectangle(
+            [position[0] - 5, position[1] - 5, 
+             position[0] + text_width + 5, position[1] + text_height + 5],
+            fill="white"
+        )
+        draw.text(position, text, fill="red", font=font)
+        
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
