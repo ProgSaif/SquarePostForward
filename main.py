@@ -8,6 +8,7 @@ from threading import Thread
 from flask import Flask, Response
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
+from PIL import ImageDraw, ImageFont
 
 # Load environment variables
 load_dotenv()
@@ -31,9 +32,11 @@ BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)'
 class ForwarderBot:
     def __init__(self):
         self.client = TelegramClient(
-            'forwarder_session',
+            os.path.join(os.getcwd(), 'forwarder_session'),  # Use absolute path
             int(os.getenv('API_ID')),
-            os.getenv('API_HASH')
+            os.getenv('API_HASH'),
+            connection_retries=5,
+            base_logger=logger
         )
         self.source_channels = [
             int(ch.strip()) for ch in 
@@ -48,28 +51,30 @@ class ForwarderBot:
         self.forwarded_messages = set()
 
     async def initialize(self):
-        """Initialize channel entities"""
+        """Initialize channel entities with error handling"""
         self.resolved_sources = []
         for chat_id in self.source_channels:
             try:
                 entity = await self.client.get_entity(chat_id)
                 self.resolved_sources.append(entity)
-                logger.debug(f"Resolved source channel: {chat_id}")
+                logger.info(f"Successfully resolved source channel: {chat_id}")
             except Exception as e:
                 logger.error(f"Failed to resolve channel {chat_id}: {e}")
+                raise
 
     def should_forward(self, message_text: str) -> bool:
-        """Check forwarding criteria"""
-        if not BINANCE_LINK_PATTERN.search(message_text):
+        """Enhanced forwarding criteria check"""
+        if not message_text:
             return False
-        return any(num in message_text for num in VALID_NUMBERS)
-
-    def clean_message(self, message_text: str) -> str:
-        """Preserve original message without removing any words"""
-        return message_text  # Simply return the original text without modification
+            
+        has_binance = bool(BINANCE_LINK_PATTERN.search(message_text))
+        has_valid = any(num in message_text for num in VALID_NUMBERS)
+        
+        logger.debug(f"Forward check - Binance: {has_binance}, Valid: {has_valid}")
+        return has_binance and has_valid
 
     def generate_qr_code(self, url: str) -> BytesIO:
-        """Generate QR code with custom styling"""
+        """Generate QR code with RedPacketHub centered"""
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -79,23 +84,18 @@ class ForwarderBot:
         qr.add_data(url)
         qr.make(fit=True)
         
-        # Create QR code image
         img = qr.make_image(fill_color="red", back_color="white").convert('RGB')
-        
-        # Add text to the center of the QR code
-        from PIL import ImageDraw, ImageFont
         draw = ImageDraw.Draw(img)
+        
         try:
             font = ImageFont.truetype("arial.ttf", 20)
         except:
             font = ImageFont.load_default()
         
-        # Calculate text position
         text = "RedPacketHub"
         text_width, text_height = draw.textsize(text, font=font)
         position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
         
-        # Draw text with white background
         draw.rectangle(
             [position[0] - 5, position[1] - 5, 
              position[0] + text_width + 5, position[1] + text_height + 5],
@@ -104,77 +104,104 @@ class ForwarderBot:
         draw.text(position, text, fill="red", font=font)
         
         buffer = BytesIO()
-        img.save(buffer, format="PNG", quality=100)
+        img.save(buffer, format="PNG")
         buffer.seek(0)
         return buffer
 
     async def handle_message(self, event):
-        """Process messages with perfect formatting preservation"""
+        """Enhanced message handler with detailed logging"""
         try:
+            logger.info(f"New message from chat {event.chat_id}")
+
             if not event.message.text:
+                logger.debug("No text content, skipping")
                 return
 
             message_id = event.message.id
             if message_id in self.forwarded_messages:
+                logger.debug("Message already forwarded")
                 return
 
             if self.should_forward(event.message.text):
+                logger.info("Message meets forwarding criteria")
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
                 
-                # Keep the first Binance link in the text (will be clickable)
-                if binance_links:
-                    # Replace all Binance links with just the first one
-                    cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
-                else:
-                    cleaned_text = original_text
+                cleaned_text = BINANCE_LINK_PATTERN.sub(
+                    binance_links[0] if binance_links else '', 
+                    original_text
+                )
                 
                 for target in self.target_channels:
                     try:
                         if binance_links:
                             qr_buffer = self.generate_qr_code(binance_links[0])
-                            # Send with the original link preserved in text
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
                                 caption=cleaned_text,
-                                parse_mode='md',  # Preserves all formatting
-                                link_preview=True  # This enables link embedding
+                                parse_mode='md',
+                                link_preview=True
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
                                 message=cleaned_text,
                                 parse_mode='md',
-                                link_preview=True  # Enable link embedding
+                                link_preview=True
                             )
                         
                         self.forwarded_messages.add(message_id)
-                        logger.info(f"Perfectly forwarded to {target}")
+                        logger.info(f"Forwarded to {target}")
+                        
+                        # Rate limiting protection
+                        await asyncio.sleep(1)
+                        
                     except Exception as e:
                         logger.error(f"Forward failed to {target}: {e}")
+            else:
+                logger.debug("Message doesn't meet criteria")
+                
         except Exception as e:
-            logger.error(f"Message handling error: {e}")
+            logger.error(f"Error handling message: {e}")
 
     async def run(self):
-        """Main bot loop"""
-        await self.client.start(bot_token=os.getenv('BOT_TOKEN'))
-        me = await self.client.get_me()
-        logger.info(f"Bot started as @{me.username}")
+        """Main bot loop with Railway optimizations"""
+        try:
+            # Connection with retries
+            for attempt in range(3):
+                try:
+                    await self.client.start(bot_token=os.getenv('BOT_TOKEN'))
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise
+                    await asyncio.sleep(5)
+            
+            me = await self.client.get_me()
+            logger.info(f"Bot started as @{me.username}")
 
-        await self.initialize()
-        
-        @self.client.on(events.NewMessage(chats=self.resolved_sources))
-        async def handler(event):
-            await self.handle_message(event)
+            await self.initialize()
+            
+            @self.client.on(events.NewMessage(chats=self.resolved_sources))
+            async def handler(event):
+                await self.handle_message(event)
 
-        logger.info("Bot is running and monitoring channels")
-        await self.client.run_until_disconnected()
+            logger.info("Bot is monitoring channels")
+            
+            # Keep-alive for Railway
+            while True:
+                await asyncio.sleep(3600)
+                
+        except Exception as e:
+            logger.critical(f"Bot crashed: {e}")
+            await self.client.disconnect()
+            raise
 
 # Health check endpoints
 @app.route('/')
 def home():
-    return "Telegram Forwarder Bot"
+    return "Telegram Forwarder Bot - Operational"
 
 @app.route('/health')
 def health():
@@ -182,8 +209,18 @@ def health():
         return Response("OK", status=200)
     return Response("Service Unavailable", status=503)
 
+@app.route('/status')
+def status():
+    return {
+        'status': 'running',
+        'connected': bot.client.is_connected(),
+        'sources': len(bot.resolved_sources),
+        'targets': len(bot.target_channels)
+    }
+
 def run_web_server():
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', '8000')))
+    port = int(os.getenv('PORT', '8000'))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 if __name__ == '__main__':
     bot = ForwarderBot()
