@@ -78,8 +78,8 @@ class ForwarderBot:
         qr = qrcode.QRCode(
             version=4,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=12,
-            border=1,
+            box_size=10,
+            border=2,
         )
         qr.add_data(url)
         qr.make(fit=True)
