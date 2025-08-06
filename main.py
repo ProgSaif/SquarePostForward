@@ -92,7 +92,7 @@ class ForwarderBot:
         except:
             font = ImageFont.load_default()
         
-        text = "Follow on Telegram RedPacketHub"
+        text = "Follow on Telegram Red Packet Hub"
         
         # Modern Pillow 10+ compatible text measurement
         if hasattr(draw, 'textbbox'):  # Newer Pillow versions
