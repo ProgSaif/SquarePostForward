@@ -32,7 +32,7 @@ BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/cart/\d+)'
 class ForwarderBot:
     def __init__(self):
         self.client = TelegramClient(
-            os.path.join(os.getcwd(), 'forwarder_session'),  # Use absolute path
+            os.path.join(os.getcwd(), 'forwarder_session'),
             int(os.getenv('API_ID')),
             os.getenv('API_HASH'),
             connection_retries=5,
@@ -51,7 +51,7 @@ class ForwarderBot:
         self.forwarded_messages = set()
 
     async def initialize(self):
-        """Initialize channel entities with error handling"""
+        """Initialize channel entities"""
         self.resolved_sources = []
         for chat_id in self.source_channels:
             try:
@@ -63,7 +63,7 @@ class ForwarderBot:
                 raise
 
     def should_forward(self, message_text: str) -> bool:
-        """Enhanced forwarding criteria check"""
+        """Check forwarding criteria"""
         if not message_text:
             return False
             
@@ -74,7 +74,7 @@ class ForwarderBot:
         return has_binance and has_valid
 
     def generate_qr_code(self, url: str) -> BytesIO:
-        """Generate QR code with RedPacketHub centered"""
+        """Generate QR code with RedPacketHub centered (Pillow 10+ compatible)"""
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -93,9 +93,18 @@ class ForwarderBot:
             font = ImageFont.load_default()
         
         text = "RedPacketHub"
-        text_width, text_height = draw.textsize(text, font=font)
+        
+        # Modern Pillow 10+ compatible text measurement
+        if hasattr(draw, 'textbbox'):  # Newer Pillow versions
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+        else:  # Fallback for older versions
+            text_width, text_height = draw.textsize(text, font=font)
+        
         position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
         
+        # Draw background rectangle
         draw.rectangle(
             [position[0] - 5, position[1] - 5, 
              position[0] + text_width + 5, position[1] + text_height + 5],
@@ -109,7 +118,7 @@ class ForwarderBot:
         return buffer
 
     async def handle_message(self, event):
-        """Enhanced message handler with detailed logging"""
+        """Process incoming messages"""
         try:
             logger.info(f"New message from chat {event.chat_id}")
 
@@ -166,7 +175,7 @@ class ForwarderBot:
             logger.error(f"Error handling message: {e}")
 
     async def run(self):
-        """Main bot loop with Railway optimizations"""
+        """Main bot loop"""
         try:
             # Connection with retries
             for attempt in range(3):
