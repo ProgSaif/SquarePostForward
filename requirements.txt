@@ -1,5 +1,5 @@
 telethon==1.28.5
+qrcode[pil]==7.4.2
+Pillow==10.0.0
+flask==2.3.2
 python-dotenv==1.0.0
-flask==2.2.5
-qrcode[pillow]>=7.4.2
-pillow>=9.0.0
