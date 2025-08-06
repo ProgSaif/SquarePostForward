@@ -108,9 +108,9 @@ class ForwarderBot:
         draw.rectangle(
             [position[0] - 10, position[1] - 10, 
              position[0] + text_width + 10, position[1] + text_height + 10],
-            fill="red"
+            fill="white"
         )
-        draw.text(position, text, fill="white", font=font)
+        draw.text(position, text, fill="red", font=font)
         
         buffer = BytesIO()
         img.save(buffer, format="PNG")
