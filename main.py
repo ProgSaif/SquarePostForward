@@ -65,8 +65,12 @@ class ForwarderBot:
         return any(num in message_text for num in VALID_NUMBERS)
 
     def clean_message(self, message_text: str) -> str:
-        """Preserve original message without removing any words"""
-        return message_text  # Simply return the original text without modification
+        """Remove specific hashtags while preserving the rest of the message"""
+        # Remove #square and #slot while keeping all other content
+        cleaned_text = message_text.replace('#square', '').replace('#slot', '')
+        # Remove any extra spaces that might result from the replacements
+        cleaned_text = ' '.join(cleaned_text.split())
+        return cleaned_text
 
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with custom styling"""
@@ -78,7 +82,7 @@ class ForwarderBot:
         )
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="red", back_color="white")
+        img = qr.make_image(fill_color="white", back_color="red")
         buffer = BytesIO()
         img.save(buffer, format="PNG", quality=100)
         buffer.seek(0)
@@ -98,12 +102,15 @@ class ForwarderBot:
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
                 
+                # Clean the text by removing #square and #slot
+                cleaned_text = self.clean_message(original_text)
+                
                 # Keep the first Binance link in the text (will be clickable)
                 if binance_links:
                     # Replace all Binance links with just the first one
-                    cleaned_text = BINANCE_LINK_PATTERN.sub(binance_links[0], original_text)
+                    final_text = BINANCE_LINK_PATTERN.sub(binance_links[0], cleaned_text)
                 else:
-                    cleaned_text = original_text
+                    final_text = cleaned_text
                 
                 for target in self.target_channels:
                     try:
@@ -113,14 +120,14 @@ class ForwarderBot:
                             await self.client.send_file(
                                 entity=target,
                                 file=qr_buffer,
-                                caption=cleaned_text,
+                                caption=final_text,
                                 parse_mode='md',  # Preserves all formatting
                                 link_preview=True  # This enables link embedding
                             )
                         else:
                             await self.client.send_message(
                                 entity=target,
-                                message=cleaned_text,
+                                message=final_text,
                                 parse_mode='md',
                                 link_preview=True  # Enable link embedding
                             )
