@@ -88,7 +88,7 @@ class ForwarderBot:
         draw = ImageDraw.Draw(img)
         
         try:
-            font = ImageFont.truetype("arial.ttf", 50)
+            font = ImageFont.truetype("arial.ttf", 100)
         except:
             font = ImageFont.load_default()
         
@@ -106,11 +106,11 @@ class ForwarderBot:
         
         # Draw background rectangle
         draw.rectangle(
-            [position[0] - 10, position[1] - 10, 
-             position[0] + text_width + 10, position[1] + text_height + 10],
+            [position[0] - 20, position[1] - 20, 
+             position[0] + text_width + 20, position[1] + text_height + 20],
             fill="red"
         )
-        draw.text(position, text, fill="black", font=font)
+        draw.text(position, text, fill="white", font=font)
         
         buffer = BytesIO()
         img.save(buffer, format="PNG")
