@@ -78,7 +78,7 @@ class ForwarderBot:
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=10,
+            box_size=12,
             border=4,
         )
         qr.add_data(url)
@@ -88,7 +88,7 @@ class ForwarderBot:
         draw = ImageDraw.Draw(img)
         
         try:
-            font = ImageFont.truetype("arial.ttf", 20)
+            font = ImageFont.truetype("arial.ttf", 30)
         except:
             font = ImageFont.load_default()
         
@@ -106,8 +106,8 @@ class ForwarderBot:
         
         # Draw background rectangle
         draw.rectangle(
-            [position[0] - 5, position[1] - 5, 
-             position[0] + text_width + 5, position[1] + text_height + 5],
+            [position[0] - 10, position[1] - 10, 
+             position[0] + text_width + 10, position[1] + text_height + 10],
             fill="white"
         )
         draw.text(position, text, fill="red", font=font)
