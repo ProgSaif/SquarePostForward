@@ -76,7 +76,7 @@ class ForwarderBot:
     def generate_qr_code(self, url: str) -> BytesIO:
         """Generate QR code with RedPacketHub centered (Pillow 10+ compatible)"""
         qr = qrcode.QRCode(
-            version=1,
+            version=4,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=12,
             border=4,
