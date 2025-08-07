@@ -84,7 +84,7 @@ class ForwarderBot:
         qr.add_data(url)
         qr.make(fit=True)
         
-        img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+        img = qr.make_image(fill_color="red", back_color="white").convert('RGB')
         draw = ImageDraw.Draw(img)
         
         try:
