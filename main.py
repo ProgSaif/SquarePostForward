@@ -84,7 +84,7 @@ class ForwarderBot:
         qr.add_data(url)
         qr.make(fit=True)
         
-        img = qr.make_image(fill_color="orange", back_color="white").convert('RGB')
+        img = qr.make_image(fill_color="rose", back_color="white").convert('RGB')
         draw = ImageDraw.Draw(img)
         
         try:
@@ -92,7 +92,7 @@ class ForwarderBot:
         except:
             font = ImageFont.load_default()
         
-        text = " Telegram Red Packet Hub "
+        text = " Red Packet Hub "
         
         # Modern Pillow 10+ compatible text measurement
         if hasattr(draw, 'textbbox'):  # Newer Pillow versions
