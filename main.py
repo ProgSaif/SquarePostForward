@@ -84,7 +84,7 @@ class ForwarderBot:
         qr.add_data(url)
         qr.make(fit=True)
         
-        img = qr.make_image(fill_color="red", back_color="white").convert('RGB')
+        img = qr.make_image(fill_color="orange", back_color="white").convert('RGB')
         draw = ImageDraw.Draw(img)
         
         try:
@@ -110,7 +110,7 @@ class ForwarderBot:
              position[0] + text_width + 10, position[1] + text_height + 10],
             fill="white"
         )
-        draw.text(position, text, fill="black", font=font)
+        draw.text(position, text, fill="orange", font=font)
         
         buffer = BytesIO()
         img.save(buffer, format="PNG")
