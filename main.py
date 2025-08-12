@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Filter configurations
-FORBIDDEN_WORDS = ['@', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia']
+FORBIDDEN_WORDS = ['@', 'big', 'box', '#square', '#slot', 'thxbox', 'thx', 'angelia', '@GeniusCryptoFamily', '#binance']
 VALID_NUMBERS = ['USDT', 'Answer:', '#square', '𝑩𝒊𝒏𝒂𝒏𝒄𝒆 𝑭𝒆𝒆𝒅', '𝑨𝒏𝒔𝒘𝒆𝒓 :']
 BINANCE_LINK_PATTERN = re.compile(r'(https://app\.binance\.com/uni-qr/(?:cpos|cart)/\d+)')
 
