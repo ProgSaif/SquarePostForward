@@ -110,7 +110,7 @@ class ForwarderBot:
              position[0] + text_width + 10, position[1] + text_height + 10],
             fill="white"
         )
-        draw.text(position, text, fill="orange", font=font)
+        draw.text(position, text, fill="black", font=font)
         
         buffer = BytesIO()
         img.save(buffer, format="PNG")
