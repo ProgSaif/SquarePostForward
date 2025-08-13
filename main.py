@@ -92,7 +92,7 @@ class ForwarderBot:
         except:
             font = ImageFont.load_default()
         
-        text = " Red Packet Hub "
+        text = " RedPacket Hub "
         
         # Modern Pillow 10+ compatible text measurement
         if hasattr(draw, 'textbbox'):  # Newer Pillow versions
