@@ -2,13 +2,10 @@ import os
 import re
 import logging
 import asyncio
-import qrcode
-from io import BytesIO
 from threading import Thread
 from flask import Flask, Response
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
-from PIL import ImageDraw, ImageFont
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +18,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Flask appp
+# Initialize Flask app
 app = Flask(__name__)
 
 # Filter configurations
@@ -45,7 +42,7 @@ class ForwarderBot:
         ]
         self.target_channels = [
             int(ch.strip()) for ch in 
-            os.getenv('TARGET_CHANNELS', '-1002767963315,-1002361267520,-1002171874012').split(',') 
+            os.getenv('TARGET_CHANNELS', '-1002767963315,-1002171874012,-1002361267520').split(',') 
             if ch.strip()
         ]
         self.forwarded_messages = set()
@@ -73,52 +70,30 @@ class ForwarderBot:
         logger.debug(f"Forward check - Binance: {has_binance}, Valid: {has_valid}")
         return has_binance and has_valid
 
-    def generate_qr_code(self, url: str) -> BytesIO:
-        """Generate QR code with RedPacketHub centered (Pillow 10+ compatible)"""
-        qr = qrcode.QRCode(
-            version=4,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=6,
-            border=4,
-        )
-        qr.add_data(url)
-        qr.make(fit=True)
+    def extract_answer(self, message_text: str) -> str:
+        """Extract the answer from monospace text or specific patterns"""
+        # First try to find monospace text (between backticks)
+        if '`' in message_text:
+            parts = message_text.split('`')
+            if len(parts) >= 3:
+                return parts[1].strip()
         
-        img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-        draw = ImageDraw.Draw(img)
+        # Fallback: Look for specific answer patterns
+        answer_patterns = [
+            r'Answer[:：]\s*([^\n]+)',
+            r'𝑨𝒏𝒔𝒘𝒆𝒓[:：]\s*([^\n]+)',
+            r'answer[:：]\s*([^\n]+)'
+        ]
         
-        try:
-            font = ImageFont.truetype("arial.ttf", 20)
-        except:
-            font = ImageFont.load_default()
+        for pattern in answer_patterns:
+            match = re.search(pattern, message_text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
         
-        text = " The Binance Hub "
-        
-        # Modern Pillow 10+ compatible text measurement
-        if hasattr(draw, 'textbbox'):  # Newer Pillow versions
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-        else:  # Fallback for older versions
-            text_width, text_height = draw.textsize(text, font=font)
-        
-        position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
-        
-        # Draw background rectangle
-        draw.rectangle(
-            [position[0] - 10, position[1] - 10, 
-             position[0] + text_width + 10, position[1] + text_height + 10],
-            fill="white"
-        )
-        draw.text(position, text, fill="black", font=font)
-        
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-        return buffer
+        return "[Answer not found in original message]"
 
     async def handle_message(self, event):
-        """Process incoming messages"""
+        """Process incoming messages with custom formatting"""
         try:
             logger.info(f"New message from chat {event.chat_id}")
 
@@ -135,30 +110,23 @@ class ForwarderBot:
                 logger.info("Message meets forwarding criteria")
                 original_text = event.message.text
                 binance_links = BINANCE_LINK_PATTERN.findall(original_text)
+                answer_text = self.extract_answer(original_text)
+
+                # Create the formatted message
+                formatted_message = ""
+                if binance_links:
+                    formatted_message += f"[ LINK ]({binance_links[0]})\n\n"
                 
-                cleaned_text = BINANCE_LINK_PATTERN.sub(
-                    binance_links[0] if binance_links else '', 
-                    original_text
-                )
+                formatted_message += f" ANSWER: `{answer_text}`"
                 
                 for target in self.target_channels:
                     try:
-                        if binance_links:
-                            qr_buffer = self.generate_qr_code(binance_links[0])
-                            await self.client.send_file(
-                                entity=target,
-                                file=qr_buffer,
-                                caption=cleaned_text,
-                                parse_mode='md',
-                                link_preview=True
-                            )
-                        else:
-                            await self.client.send_message(
-                                entity=target,
-                                message=cleaned_text,
-                                parse_mode='md',
-                                link_preview=True
-                            )
+                        await self.client.send_message(
+                            entity=target,
+                            message=formatted_message,
+                            parse_mode='md',
+                            link_preview=False
+                        )
                         
                         self.forwarded_messages.add(message_id)
                         logger.info(f"Forwarded to {target}")
