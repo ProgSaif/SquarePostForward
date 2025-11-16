@@ -119,7 +119,7 @@ class ForwarderBot:
                 
                 formatted_message += f"Answer:\n`{answer_text}`\n\n"
 
-                formatted_message += f"#Binance #Square"
+                formatted_message += f"#BinanceSquare #Hub"
                 
                 for target in self.target_channels:
                     try:
