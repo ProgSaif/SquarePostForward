@@ -117,7 +117,7 @@ class ForwarderBot:
                 if binance_links:
                     formatted_message += f"[🧧𝑩𝒊𝒏𝒂𝒏𝒄𝒆 𝑭𝒆𝒆𝒅]({binance_links[0]})\n"
                     
-                formatted_message += f"    ⇣\n"
+                formatted_message += f"        ⇣\n"
                     
                 formatted_message += f"✔𝑨𝒏𝒔𝒘𝒆𝒓 : `{answer_text}`\n\n"
             
