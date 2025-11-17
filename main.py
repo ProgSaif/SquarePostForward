@@ -115,9 +115,9 @@ class ForwarderBot:
                 # Create the formatted message
                 formatted_message = ""
                 if binance_links:
-                    formatted_message += f"[ 🎁 Click Here]({binance_links[0]})\n\n"
+                    formatted_message += f"[🎁 Click Here]({binance_links[0]})\n\n"
                 
-                formatted_message += f" ✅ Answer:\n`{answer_text}`\n\n"
+                formatted_message += f"✓ Answer:\n`{answer_text}`\n\n"
 
                 formatted_message += f"#BinanceSquare #Hub"
                 
