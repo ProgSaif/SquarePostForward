@@ -119,7 +119,7 @@ class ForwarderBot:
                     
                 formatted_message += f"        ⇣\n"
                     
-                formatted_message += f"𝑨𝒏𝒔𝒘𝒆𝒓 : `{answer_text}`\n\n﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍\n"
+                formatted_message += f"𝑨𝒏𝒔𝒘𝒆𝒓 : `{answer_text}`\n\n﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍﹍\n"
             
                                     
                 formatted_message += f"➲ @BinanceSquare_Hub\n➲ @BinanceRedPacket_Hub  \n#Binance"
